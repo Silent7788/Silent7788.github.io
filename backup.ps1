@@ -3,13 +3,7 @@
 
 $ErrorActionPreference = "Continue"
 $Site = "D:\boke"
-
-# 备份放到 OneDrive 里，自动同步到云端；没有 OneDrive 就放本地
-if ($env:OneDrive) {
-    $Dest = Join-Path $env:OneDrive "回忆录备份"
-} else {
-    $Dest = "D:\boke备份"
-}
+$Dest = "D:\boke备份"
 $Keep = 10
 
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
