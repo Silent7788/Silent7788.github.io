@@ -132,6 +132,55 @@ function Edit-Post {
     Show-Preview $target.BaseName
 }
 
+function Add-Shuo {
+    Show-Head
+    Write-Host "  记录一条 QQ 空间说说" -ForegroundColor White
+    Write-Host "  （只是登记一条索引，内容还是存在 QQ 空间）" -ForegroundColor DarkGray
+    Write-Host ""
+
+    $today = Get-Date -Format "yyyy-MM-dd"
+    $d = Read-Host "  日期（回车 = $today）"
+    if ([string]::IsNullOrWhiteSpace($d)) { $d = $today }
+    $d = $d.Trim()
+    if ($d -notmatch '^\d{4}-\d{1,2}-\d{1,2}$') {
+        Write-Host "  日期格式不对，应该是 2015-06-08 这样。" -ForegroundColor Red
+        return
+    }
+
+    $text = Read-Host "  一句话摘要（回车跳过）"
+    $link = Read-Host "  QQ空间链接（必填）"
+    if ([string]::IsNullOrWhiteSpace($link)) {
+        Write-Host "  没有链接，已取消。" -ForegroundColor Yellow
+        return
+    }
+    $imgs = Read-Host "  几张图（回车跳过）"
+
+    $file = Join-Path $Site "source\_data\shuoshuo.yml"
+    if (-not (Test-Path -LiteralPath $file)) {
+        New-Item -ItemType File -Path $file -Force | Out-Null
+    }
+
+    function YamlQuote([string]$s) {
+        return "'" + ($s.Trim() -replace "'", "''") + "'"
+    }
+
+    $nl = "`r`n"
+    $block = $nl + "- date: " + $d + $nl
+    if (-not [string]::IsNullOrWhiteSpace($text)) {
+        $block += "  text: " + (YamlQuote $text) + $nl
+    }
+    $block += "  link: " + (YamlQuote $link) + $nl
+    if ($imgs -and $imgs.Trim() -match '^\d+$') {
+        $block += "  images: " + $imgs.Trim() + $nl
+    }
+
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::AppendAllText($file, $block, $utf8)
+
+    Write-Host ""
+    Write-Host "  已记录。记得回菜单选 5 发布，别人才看得到。" -ForegroundColor Green
+}
+
 function Publish-Site {
     Set-Location $Site
     Write-Host ""
@@ -170,6 +219,7 @@ while ($true) {
     Write-Host "  3  只看预览（打开时间轴）"
     Write-Host "  4  打开图片文件夹（放照片用）"
     Write-Host "  5  发布到网上（朋友就能看到）"
+    Write-Host "  6  记录一条 QQ 空间说说（贴链接）"
     Write-Host "  0  退出"
     Write-Host ""
 
@@ -185,6 +235,7 @@ while ($true) {
         }
         "4" { Start-Process explorer.exe "/select,`"$Site\source\images`""; }
         "5" { Publish-Site; Write-Host ""; Read-Host "  按回车返回菜单" | Out-Null }
+        "6" { Add-Shuo; Write-Host ""; Read-Host "  按回车返回菜单" | Out-Null }
         "0" { return }
         default { }
     }

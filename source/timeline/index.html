@@ -128,6 +128,27 @@ layout: false
   .tag{font-size:11px;color:var(--accent);border:1px solid rgba(168,84,47,.3);
        border-radius:999px;padding:1px 9px;letter-spacing:.5px}
 
+  /* ===== 筛选（全部 / 文章 / 说说）===== */
+  .filters{display:flex;gap:6px;margin:0 0 12px}
+  .f-btn{flex:1;padding:5px 0;border:1px solid var(--line);background:var(--card);
+    color:var(--muted);border-radius:7px;font-family:inherit;font-size:11px;
+    letter-spacing:1px;cursor:pointer;transition:all .18s}
+  .f-btn:hover{color:var(--accent);border-color:rgba(168,84,47,.4)}
+  .f-btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  /* ===== 说说节点 ===== */
+  .d-badge{font-size:9px;line-height:1;padding:2px 4px;border-radius:4px;
+    background:rgba(61,107,138,.13);color:#3d6b8a;flex:none}
+  .d.d-shuo .d-t{color:#3d6b8a}
+  .d.d-shuo:hover{background:rgba(61,107,138,.08);color:#3d6b8a}
+  .d.d-shuo.active{background:rgba(61,107,138,.12);color:#3d6b8a}
+
+  .p-badge{display:inline-block;font-size:11px;letter-spacing:1px;color:#3d6b8a;
+    background:rgba(61,107,138,.1);border:1px solid rgba(61,107,138,.25);
+    border-radius:999px;padding:2px 11px;margin:0 0 14px}
+  .p-ex-shuo{font-size:17px;line-height:1.95;color:#3d342e;margin:0}
+  .p-note{margin:14px 0 0;font-size:12px;color:var(--muted)}
+
   .mask{display:none}
 
   /* 收起状态（桌面） */
@@ -160,6 +181,11 @@ layout: false
       <a class="home" href="../">← 返回首页</a>
       <h1 class="brand">时间轴</h1>
       <p class="brand-sub">2002 — <span id="endYear"></span></p>
+      <div class="filters" id="filters">
+        <button class="f-btn on" data-f="all" type="button">全部</button>
+        <button class="f-btn" data-f="post" type="button">文章</button>
+        <button class="f-btn" data-f="shuo" type="button">说说</button>
+      </div>
       <div class="search">
         <input id="q" type="search" placeholder="搜索标题、标签、摘要…" autocomplete="off">
       </div>
@@ -224,6 +250,41 @@ layout: false
     dateEl.textContent = p[0] + " 年 " + Number(p[1]) + " 月 " + Number(p[2]) + " 日";
     stage.appendChild(dateEl);
 
+    var isShuo = item.type === "shuoshuo";
+
+    if (isShuo) {
+      var badge = document.createElement("div");
+      badge.className = "p-badge";
+      badge.textContent = "QQ 空间说说";
+      stage.appendChild(badge);
+
+      var body = document.createElement("p");
+      body.className = "p-ex p-ex-shuo";
+      body.textContent = item.excerpt || item.title || "";
+      stage.appendChild(body);
+
+      if (item.images) {
+        var imgNote = document.createElement("p");
+        imgNote.className = "p-note";
+        imgNote.textContent = "这条说说包含 " + item.images + " 张图片";
+        stage.appendChild(imgNote);
+      }
+
+      var go = document.createElement("a");
+      go.className = "p-more";
+      go.href = item.link || item.url || "#";
+      go.target = "_blank";
+      go.rel = "noopener noreferrer";
+      go.textContent = "在 QQ 空间查看 →";
+      stage.appendChild(go);
+
+      var note = document.createElement("p");
+      note.className = "p-note";
+      note.textContent = "需要登录 QQ 才能打开这条说说";
+      stage.appendChild(note);
+      return;
+    }
+
     var h = document.createElement("h1");
     h.className = "p-title";
     h.textContent = item.title;
@@ -264,21 +325,35 @@ layout: false
   }
 
   // ===== 构建目录 =====
+  var currentFilter = "all";
+
+  function passesFilter(it) {
+    if (currentFilter === "post") return it.type !== "shuoshuo";
+    if (currentFilter === "shuo") return it.type === "shuoshuo";
+    return true;
+  }
+
   function build(list) {
     items = list;
-    document.getElementById("total").textContent = list.length;
+    toc.innerHTML = "";
 
-    if (!list.length) {
-      stage.innerHTML = '<p class="empty">还没有任何记忆。在 source/_posts 里写一篇文章，它就会自动出现在这里。</p>';
+    var visible = list.filter(passesFilter);
+    document.getElementById("total").textContent = visible.length;
+
+    if (!visible.length) {
+      stage.innerHTML = '<p class="empty">' +
+        (list.length ? "这个筛选下还没有内容。" : "还没有任何记忆。在 source/_posts 里写一篇文章，它就会自动出现在这里。") +
+        "</p>";
       return;
     }
 
     var byYear = {};
-    list.forEach(function (it) {
+    visible.forEach(function (it) {
       var p = it.date.split("-").map(Number);
       byYear[p[0]] = byYear[p[0]] || {};
       byYear[p[0]][p[1]] = byYear[p[0]][p[1]] || {};
-      byYear[p[0]][p[1]][p[2]] = it;
+      byYear[p[0]][p[1]][p[2]] = byYear[p[0]][p[1]][p[2]] || [];
+      byYear[p[0]][p[1]][p[2]].push(it);
     });
 
     var years = Object.keys(byYear).map(Number).sort(function (a, b) { return a - b; });
@@ -293,12 +368,15 @@ layout: false
       var count = 0;
       if (months) {
         Object.keys(months).forEach(function (mo) {
-          count += Object.keys(months[mo]).length;
+          Object.keys(months[mo]).forEach(function (d) {
+            count += months[mo][d].length;
+          });
         });
       }
 
       var yEl = document.createElement("div");
       yEl.className = "y" + (count ? "" : " blank");
+      yEl.setAttribute("data-year", y);
 
       var yBtn = document.createElement("button");
       yBtn.className = "y-btn";
@@ -338,18 +416,25 @@ layout: false
           dIn.className = "d-in";
 
           Object.keys(days).map(Number).sort(function (a, b) { return a - b; }).forEach(function (d) {
-            var item = days[d];
-            var a = document.createElement("a");
-            a.className = "d";
-            a.href = item.url;
-            a.innerHTML = '<span class="d-n">' + d + "</span>" +
-              '<span class="d-t">' + item.title + "</span>";
+            days[d].forEach(function (item) {
+              var isShuo = item.type === "shuoshuo";
+              var a = document.createElement("a");
+              a.className = "d" + (isShuo ? " d-shuo" : "");
+              a.href = item.url || "#";
+              if (isShuo) {
+                a.target = "_blank";
+                a.rel = "noopener noreferrer";
+              }
+              a.innerHTML = '<span class="d-n">' + d + "</span>" +
+                (isShuo ? '<span class="d-badge">说</span>' : "") +
+                '<span class="d-t">' + escHtml(item.title) + "</span>";
 
-            a.addEventListener("mouseenter", function () { showPreview(item, a); });
-            a.addEventListener("focus", function () { showPreview(item, a); });
+              a.addEventListener("mouseenter", function () { showPreview(item, a); });
+              a.addEventListener("focus", function () { showPreview(item, a); });
 
-            if (!firstDayEl) { firstDayEl = a; firstItem = item; }
-            dIn.appendChild(a);
+              if (!firstDayEl) { firstDayEl = a; firstItem = item; }
+              dIn.appendChild(a);
+            });
           });
 
           dWrap.appendChild(dIn);
@@ -371,6 +456,19 @@ layout: false
       var fm = firstYearEl.querySelector(".m");
       if (fm) fm.classList.add("open");
     }
+
+    // 支持 #2026 这样的锚点，直接展开某一年
+    var hashYear = (location.hash || "").replace("#", "");
+    if (/^\d{4}$/.test(hashYear)) {
+      var target = toc.querySelector('.y[data-year="' + hashYear + '"]');
+      if (target && target.classList.contains("blank") === false) {
+        target.classList.add("open");
+        var tm = target.querySelector(".m");
+        if (tm) tm.classList.add("open");
+        try { target.scrollIntoView({ block: "center" }); } catch (e) {}
+      }
+    }
+
     if (firstItem) showPreview(firstItem, firstDayEl);
   }
 
@@ -454,12 +552,35 @@ layout: false
     }
   }
 
+  // ===== 筛选按钮 =====
+  function setupFilters() {
+    var box = document.getElementById("filters");
+    if (!box) return;
+
+    Array.prototype.forEach.call(box.querySelectorAll(".f-btn"), function (x) {
+      x.classList.toggle("on", x.getAttribute("data-f") === currentFilter);
+    });
+
+    box.addEventListener("click", function (e) {
+      var btn = e.target.closest ? e.target.closest(".f-btn") : null;
+      if (!btn) return;
+      Array.prototype.forEach.call(box.querySelectorAll(".f-btn"), function (x) {
+        x.classList.toggle("on", x === btn);
+      });
+      currentFilter = btn.getAttribute("data-f") || "all";
+      build(items);
+    });
+  }
+
   // ===== 读取数据 =====
   fetch("../timeline.json")
     .then(function (r) { return r.json(); })
     .then(function (list) {
+      var mf = location.search.match(/[?&]f=(all|post|shuo)/);
+      if (mf) currentFilter = mf[1];
       build(list);
       setupSearch();
+      setupFilters();
     })
     .catch(function () {
       stage.innerHTML = '<p class="empty">读取 timeline.json 失败。请先执行 hexo generate。</p>';
