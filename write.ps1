@@ -26,11 +26,11 @@ function Show-Head {
 
 function Open-Editor([string]$Path) {
     Write-Host ""
-    Write-Host "  正在打开编辑器..." -ForegroundColor Cyan
-    Write-Host "  写完后记得【保存】，然后关闭编辑窗口，这里会自动继续。" -ForegroundColor DarkGray
+    Write-Host "  正在打开记事本..." -ForegroundColor Cyan
+    Start-Process -FilePath $script:Editor -ArgumentList ('"' + $Path + '"')
     Write-Host ""
-    $p = Start-Process -FilePath $script:Editor -ArgumentList ('"' + $Path + '"') -PassThru
-    $p.WaitForExit()
+    Write-Host "  写完后先【保存】(Ctrl+S)，再回到这个窗口按回车。" -ForegroundColor Yellow
+    Read-Host "  按回车继续" | Out-Null
 }
 
 function Test-Server {
@@ -53,7 +53,8 @@ function Start-ServerIfNeeded {
 }
 
 function Wait-ForContent([string]$Title) {
-    if ([string]::IsNullOrWhiteSpace($Title)) { Start-Sleep -Seconds 1; return }
+    Start-Sleep -Seconds 2
+    if ([string]::IsNullOrWhiteSpace($Title)) { return }
     for ($i = 0; $i -lt 40; $i++) {
         Start-Sleep -Milliseconds 500
         try {
