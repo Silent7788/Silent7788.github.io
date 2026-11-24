@@ -22,6 +22,9 @@ hexo.extend.generator.register('memoir_timeline', function (locals) {
       title: post.title || '无标题',
       url: '/' + post.path,
       cover: post.cover || '',
+      tags: post.tags && post.tags.length
+        ? post.tags.toArray().map(function (t) { return t.name; })
+        : [],
       excerpt: text.length > 110 ? text.slice(0, 110) + '…' : text
     };
   });

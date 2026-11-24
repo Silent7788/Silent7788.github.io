@@ -103,6 +103,31 @@ layout: false
   .p-more:hover{border-bottom-color:var(--accent)}
   .empty{color:var(--muted);font-size:15px;padding:60px 0}
 
+  /* ===== 搜索 ===== */
+  .search{margin:0 0 16px}
+  .search input{
+    width:100%;padding:7px 11px;border:1px solid var(--line);border-radius:8px;
+    background:var(--card);font-family:inherit;font-size:13px;color:var(--ink);
+    outline:none;transition:border-color .2s;
+  }
+  .search input:focus{border-color:var(--accent)}
+  .search input::placeholder{color:#b9b0a4}
+
+  .results{display:none}
+  .results.on{display:block}
+  .r-count{font-size:11px;color:var(--muted);margin:0 0 8px;letter-spacing:.5px}
+  .r{display:block;padding:7px 9px;margin:2px 0;border-radius:8px;text-decoration:none;
+     color:#4a4038;font-size:13px;line-height:1.5;transition:background .18s}
+  .r:hover{background:rgba(168,84,47,.08)}
+  .r-date{display:block;font-size:10px;color:var(--muted);letter-spacing:.5px;margin-bottom:1px}
+  .r-title{display:block;font-weight:600;color:var(--ink)}
+  .r-ex{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.5}
+  mark{background:rgba(168,84,47,.18);color:inherit;padding:0 1px;border-radius:2px}
+
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px}
+  .tag{font-size:11px;color:var(--accent);border:1px solid rgba(168,84,47,.3);
+       border-radius:999px;padding:1px 9px;letter-spacing:.5px}
+
   .mask{display:none}
 
   /* 收起状态（桌面） */
@@ -135,7 +160,11 @@ layout: false
       <a class="home" href="/">← 返回首页</a>
       <h1 class="brand">时间轴</h1>
       <p class="brand-sub">2002 — <span id="endYear"></span></p>
+      <div class="search">
+        <input id="q" type="search" placeholder="搜索标题、标签、摘要…" autocomplete="off">
+      </div>
       <nav class="toc" id="toc"></nav>
+      <div class="results" id="results"></div>
       <p class="count">共 <b id="total">0</b> 条记忆</p>
     </div>
   </aside>
@@ -155,6 +184,8 @@ layout: false
   var toc = document.getElementById("toc");
   var stage = document.getElementById("stage");
   var mask = document.getElementById("mask");
+
+  var items = [];
 
   document.getElementById("endYear").textContent = new Date().getFullYear();
 
@@ -198,6 +229,18 @@ layout: false
     h.textContent = item.title;
     stage.appendChild(h);
 
+    if (item.tags && item.tags.length) {
+      var tagBox = document.createElement("div");
+      tagBox.className = "tags";
+      item.tags.forEach(function (t) {
+        var s = document.createElement("span");
+        s.className = "tag";
+        s.textContent = t;
+        tagBox.appendChild(s);
+      });
+      stage.appendChild(tagBox);
+    }
+
     if (item.cover) {
       var img = document.createElement("img");
       img.className = "p-cover";
@@ -222,6 +265,7 @@ layout: false
 
   // ===== 构建目录 =====
   function build(list) {
+    items = list;
     document.getElementById("total").textContent = list.length;
 
     if (!list.length) {
@@ -330,10 +374,93 @@ layout: false
     if (firstItem) showPreview(firstItem, firstDayEl);
   }
 
+  // ===== 搜索 =====
+  function escHtml(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function markUp(text, kw) {
+    if (!kw) return escHtml(text);
+    var i = String(text).toLowerCase().indexOf(kw);
+    if (i < 0) return escHtml(text);
+    return escHtml(String(text).slice(0, i)) +
+      "<mark>" + escHtml(String(text).slice(i, i + kw.length)) + "</mark>" +
+      escHtml(String(text).slice(i + kw.length));
+  }
+
+  function setupSearch() {
+    var input = document.getElementById("q");
+    var res = document.getElementById("results");
+    var tocEl = document.getElementById("toc");
+
+    function run() {
+      var kw = input.value.trim().toLowerCase();
+
+      if (!kw) {
+        res.classList.remove("on");
+        res.innerHTML = "";
+        tocEl.style.display = "";
+        return;
+      }
+
+      tocEl.style.display = "none";
+      res.classList.add("on");
+
+      var hits = items.filter(function (it) {
+        var hay = (it.title || "") + " " + (it.excerpt || "") + " " + ((it.tags || []).join(" "));
+        return hay.toLowerCase().indexOf(kw) >= 0;
+      });
+
+      var html = '<p class="r-count">找到 ' + hits.length + " 条</p>";
+      hits.forEach(function (it) {
+        html += '<a class="r" href="' + it.url + '" data-url="' + it.url + '">' +
+          '<span class="r-date">' + it.date + "</span>" +
+          '<span class="r-title">' + markUp(it.title, kw) + "</span>" +
+          (it.excerpt ? '<span class="r-ex">' + markUp(it.excerpt.slice(0, 46), kw) + "</span>" : "") +
+          "</a>";
+      });
+      if (!hits.length) {
+        html += '<p class="r-count">没有找到，换个词试试</p>';
+      }
+      res.innerHTML = html;
+
+      Array.prototype.forEach.call(res.querySelectorAll(".r"), function (a) {
+        a.addEventListener("click", function (e) {
+          e.preventDefault();
+          var url = a.getAttribute("data-url");
+          var it = null;
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].url === url) { it = items[i]; break; }
+          }
+          if (it) showPreview(it, null);
+          if (isMobile()) app.classList.remove("side-open");
+          window.scrollTo(0, 0);
+        });
+      });
+    }
+
+    input.addEventListener("input", run);
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { input.value = ""; run(); }
+    });
+
+    // 支持 ?q=关键词 直接带搜索结果打开
+    var m = location.search.match(/[?&]q=([^&]*)/);
+    if (m) {
+      input.value = decodeURIComponent(m[1].replace(/\+/g, " "));
+      run();
+    }
+  }
+
   // ===== 读取数据 =====
   fetch("../timeline.json")
     .then(function (r) { return r.json(); })
-    .then(build)
+    .then(function (list) {
+      build(list);
+      setupSearch();
+    })
     .catch(function () {
       stage.innerHTML = '<p class="empty">读取 timeline.json 失败。请先执行 hexo generate。</p>';
     });
