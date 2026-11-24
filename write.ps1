@@ -132,6 +132,30 @@ function Edit-Post {
     Show-Preview $target.BaseName
 }
 
+function Publish-Site {
+    Set-Location $Site
+    Write-Host ""
+    Write-Host "  [1/3] 提交本地修改..." -ForegroundColor Cyan
+    git add -A 2>&1 | Out-Null
+    $msg = "更新 " + (Get-Date -Format "yyyy-MM-dd HH:mm")
+    git commit -m $msg 2>&1 | Out-Null
+    Write-Host "        完成" -ForegroundColor Green
+
+    Write-Host "  [2/3] 推送到 GitHub..." -ForegroundColor Cyan
+    git push 2>&1 | Out-Null
+    $code = $LASTEXITCODE
+
+    if ($code -eq 0) {
+        Write-Host "        完成" -ForegroundColor Green
+        Write-Host "  [3/3] 正在自动部署..." -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  大约 1 分钟后生效：https://silent7788.github.io/" -ForegroundColor White
+        Start-Process "https://silent7788.github.io/"
+    } else {
+        Write-Host "        推送失败（网络或登录问题）" -ForegroundColor Red
+    }
+}
+
 # ---------- 入口 ----------
 
 if ($Action -eq "build") {
@@ -145,6 +169,7 @@ while ($true) {
     Write-Host "  2  继续修改已有的一篇"
     Write-Host "  3  只看预览（打开时间轴）"
     Write-Host "  4  打开图片文件夹（放照片用）"
+    Write-Host "  5  发布到网上（朋友就能看到）"
     Write-Host "  0  退出"
     Write-Host ""
 
@@ -159,6 +184,7 @@ while ($true) {
             Read-Host "  按回车返回菜单" | Out-Null
         }
         "4" { Start-Process explorer.exe "/select,`"$Site\source\images`""; }
+        "5" { Publish-Site; Write-Host ""; Read-Host "  按回车返回菜单" | Out-Null }
         "0" { return }
         default { }
     }
