@@ -1,0 +1,344 @@
+---
+layout: false
+---
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>时间轴</title>
+<style>
+  :root{
+    --ink:#2b2622; --muted:#9a9086; --line:#e2dad0; --accent:#a8542f;
+    --paper:#faf7f2; --card:#fffdf9; --side:#f4efe6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Noto Serif SC","Source Han Serif SC","Songti SC",SimSun,Georgia,serif;
+    line-height:1.75; -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+
+  /* ===== 侧边栏 ===== */
+  .side{
+    position:fixed; top:0; left:0; bottom:0; width:300px; z-index:20;
+    background:var(--side); border-right:1px solid var(--line);
+    overflow-y:auto; transition:transform .3s cubic-bezier(.4,0,.2,1);
+  }
+  .side-in{padding:34px 22px 28px}
+  .home{display:inline-block;color:var(--muted);text-decoration:none;font-size:12px;letter-spacing:.5px}
+  .home:hover{color:var(--accent)}
+  .brand{margin:14px 0 2px;font-size:22px;font-weight:600;letter-spacing:6px;text-indent:6px}
+  .brand-sub{margin:0 0 22px;color:var(--muted);font-size:11px;letter-spacing:1px}
+
+  .toc{font-size:15px}
+  .y{margin:0}
+  .y-btn{
+    display:flex;align-items:baseline;gap:8px;width:100%;padding:7px 0;
+    background:none;border:0;text-align:left;font-family:inherit;
+    color:var(--ink);font-size:15px;letter-spacing:1px;cursor:pointer;transition:color .18s;
+  }
+  .y-btn:hover{color:var(--accent)}
+  .y-n{font-size:11px;color:var(--muted)}
+  .y.blank .y-btn{color:#b9b0a4;cursor:default;font-size:14px}
+  .y.blank .y-n{color:#c9c0b4}
+
+  .m-wrap,.d-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.4,0,.2,1)}
+  .m-in,.d-in{overflow:hidden;min-height:0}
+  .m-in{padding-left:13px;border-left:1px solid var(--line);margin-left:3px}
+  .d-in{padding-left:11px}
+
+  .y:hover > .m-wrap, .y.open > .m-wrap{grid-template-rows:1fr}
+  .m:hover > .d-wrap, .m.open > .d-wrap{grid-template-rows:1fr}
+
+  .m-btn{
+    display:block;width:100%;padding:4px 0;background:none;border:0;text-align:left;
+    font-family:inherit;font-size:13px;color:var(--muted);cursor:pointer;
+    letter-spacing:1px;transition:color .18s;
+  }
+  .m-btn:hover{color:var(--accent)}
+  .d{
+    display:flex;gap:7px;align-items:baseline;
+    padding:5px 8px;margin:1px 0;border-radius:7px;
+    text-decoration:none;font-size:13px;color:#5a5048;line-height:1.5;
+    transition:background .18s,color .18s;
+  }
+  .d:hover{background:rgba(168,84,47,.08);color:var(--accent)}
+  .d.active{background:rgba(168,84,47,.11);color:var(--accent);font-weight:600}
+  .d-n{color:var(--muted);font-size:11px;min-width:16px}
+  .d.active .d-n{color:var(--accent)}
+  .d-t{flex:1}
+
+  .count{margin:26px 0 0;padding-top:16px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:11px;letter-spacing:.5px}
+  .count b{color:var(--ink);font-weight:600}
+
+  /* ===== 右侧内容 ===== */
+  .main{margin-left:300px;min-height:100vh;transition:margin-left .3s cubic-bezier(.4,0,.2,1)}
+  .bar{
+    position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;
+    padding:14px 22px;background:rgba(250,247,242,.94);
+    backdrop-filter:blur(6px);border-bottom:1px solid transparent;
+  }
+  .toggle{
+    width:34px;height:34px;border:1px solid var(--line);border-radius:9px;
+    background:var(--card);color:var(--ink);font-size:15px;line-height:1;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:all .2s;flex:none;
+  }
+  .toggle:hover{border-color:var(--accent);color:var(--accent)}
+  .bar-title{font-size:13px;color:var(--muted);letter-spacing:2px}
+
+  .stage{max-width:720px;margin:0 auto;padding:36px 30px 140px}
+
+  .p-date{font-size:12px;color:var(--accent);letter-spacing:3px}
+  .p-title{margin:12px 0 22px;font-size:32px;font-weight:600;letter-spacing:2px;line-height:1.4}
+  .p-cover{width:100%;height:auto;border-radius:10px;display:block;margin:0 0 24px;
+    box-shadow:0 18px 40px -28px rgba(70,50,30,.55)}
+  .p-ex{margin:0;color:#4a4038;font-size:16px;line-height:2}
+  .p-more{display:inline-block;margin-top:26px;color:var(--accent);text-decoration:none;
+    font-size:14px;letter-spacing:1px;border-bottom:1px solid rgba(168,84,47,.35);padding-bottom:2px}
+  .p-more:hover{border-bottom-color:var(--accent)}
+  .empty{color:var(--muted);font-size:15px;padding:60px 0}
+
+  .mask{display:none}
+
+  /* 收起状态（桌面） */
+  .side-hidden .side{transform:translateX(-100%)}
+  .side-hidden .main{margin-left:0}
+
+  /* ===== 手机端 ===== */
+  @media (max-width:860px){
+    .side{transform:translateX(-100%);width:82vw;max-width:320px;
+      box-shadow:0 0 50px rgba(0,0,0,.16)}
+    .side-open .side{transform:none}
+    .main{margin-left:0}
+    .side-open .mask{
+      display:block;position:fixed;inset:0;z-index:15;
+      background:rgba(40,30,20,.32);
+    }
+    .stage{padding:24px 20px 90px}
+    .p-title{font-size:26px;margin:10px 0 18px}
+    .p-ex{font-size:15px;line-height:1.95}
+    .bar{padding:11px 16px}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="mask" id="mask"></div>
+
+  <aside class="side">
+    <div class="side-in">
+      <a class="home" href="/">← 返回首页</a>
+      <h1 class="brand">时间轴</h1>
+      <p class="brand-sub">2002 — <span id="endYear"></span></p>
+      <nav class="toc" id="toc"></nav>
+      <p class="count">共 <b id="total">0</b> 条记忆</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="bar">
+      <button class="toggle" id="toggle" title="显示 / 隐藏目录" aria-label="显示或隐藏目录">☰</button>
+      <span class="bar-title">目录</span>
+    </div>
+    <div class="stage" id="stage"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var app = document.getElementById("app");
+  var toc = document.getElementById("toc");
+  var stage = document.getElementById("stage");
+  var mask = document.getElementById("mask");
+
+  document.getElementById("endYear").textContent = new Date().getFullYear();
+
+  function isMobile() { return window.matchMedia("(max-width: 860px)").matches; }
+
+  // ===== 侧边栏开关 =====
+  document.getElementById("toggle").addEventListener("click", function () {
+    if (isMobile()) {
+      app.classList.toggle("side-open");
+    } else {
+      app.classList.toggle("side-hidden");
+      try {
+        localStorage.setItem("memoir-side", app.classList.contains("side-hidden") ? "1" : "0");
+      } catch (e) {}
+    }
+  });
+  mask.addEventListener("click", function () { app.classList.remove("side-open"); });
+
+  try {
+    if (!isMobile() && localStorage.getItem("memoir-side") === "1") {
+      app.classList.add("side-hidden");
+    }
+  } catch (e) {}
+
+  // ===== 预览区 =====
+  function showPreview(item, dayEl) {
+    var prev = toc.querySelector(".d.active");
+    if (prev) prev.classList.remove("active");
+    if (dayEl) dayEl.classList.add("active");
+
+    stage.innerHTML = "";
+
+    var p = item.date.split("-");
+    var dateEl = document.createElement("div");
+    dateEl.className = "p-date";
+    dateEl.textContent = p[0] + " 年 " + Number(p[1]) + " 月 " + Number(p[2]) + " 日";
+    stage.appendChild(dateEl);
+
+    var h = document.createElement("h1");
+    h.className = "p-title";
+    h.textContent = item.title;
+    stage.appendChild(h);
+
+    if (item.cover) {
+      var img = document.createElement("img");
+      img.className = "p-cover";
+      img.src = item.cover;
+      img.alt = item.title;
+      stage.appendChild(img);
+    }
+
+    if (item.excerpt) {
+      var ex = document.createElement("p");
+      ex.className = "p-ex";
+      ex.textContent = item.excerpt;
+      stage.appendChild(ex);
+    }
+
+    var more = document.createElement("a");
+    more.className = "p-more";
+    more.href = item.url;
+    more.textContent = "阅读全文 →";
+    stage.appendChild(more);
+  }
+
+  // ===== 构建目录 =====
+  function build(list) {
+    document.getElementById("total").textContent = list.length;
+
+    if (!list.length) {
+      stage.innerHTML = '<p class="empty">还没有任何记忆。在 source/_posts 里写一篇文章，它就会自动出现在这里。</p>';
+      return;
+    }
+
+    var byYear = {};
+    list.forEach(function (it) {
+      var p = it.date.split("-").map(Number);
+      byYear[p[0]] = byYear[p[0]] || {};
+      byYear[p[0]][p[1]] = byYear[p[0]][p[1]] || {};
+      byYear[p[0]][p[1]][p[2]] = it;
+    });
+
+    var years = Object.keys(byYear).map(Number).sort(function (a, b) { return a - b; });
+    var firstYear = years[0];
+    var lastYear = Math.max(new Date().getFullYear(), years[years.length - 1]);
+
+    var firstDayEl = null;
+    var firstItem = null;
+
+    for (var y = firstYear; y <= lastYear; y++) {
+      var months = byYear[y];
+      var count = 0;
+      if (months) {
+        Object.keys(months).forEach(function (mo) {
+          count += Object.keys(months[mo]).length;
+        });
+      }
+
+      var yEl = document.createElement("div");
+      yEl.className = "y" + (count ? "" : " blank");
+
+      var yBtn = document.createElement("button");
+      yBtn.className = "y-btn";
+      yBtn.type = "button";
+      yBtn.innerHTML = "<span>" + y + "</span>" +
+        '<span class="y-n">' + (count ? count : "—") + "</span>";
+      yBtn.addEventListener("click", function () {
+        if (!this.parentElement.classList.contains("blank")) {
+          this.parentElement.classList.toggle("open");
+        }
+      });
+      yEl.appendChild(yBtn);
+
+      if (count) {
+        var mWrap = document.createElement("div");
+        mWrap.className = "m-wrap";
+        var mIn = document.createElement("div");
+        mIn.className = "m-in";
+
+        Object.keys(months).map(Number).sort(function (a, b) { return a - b; }).forEach(function (mo) {
+          var days = months[mo];
+          var mEl = document.createElement("div");
+          mEl.className = "m";
+
+          var mBtn = document.createElement("button");
+          mBtn.className = "m-btn";
+          mBtn.type = "button";
+          mBtn.textContent = mo + " 月";
+          mBtn.addEventListener("click", function () {
+            this.parentElement.classList.toggle("open");
+          });
+          mEl.appendChild(mBtn);
+
+          var dWrap = document.createElement("div");
+          dWrap.className = "d-wrap";
+          var dIn = document.createElement("div");
+          dIn.className = "d-in";
+
+          Object.keys(days).map(Number).sort(function (a, b) { return a - b; }).forEach(function (d) {
+            var item = days[d];
+            var a = document.createElement("a");
+            a.className = "d";
+            a.href = item.url;
+            a.innerHTML = '<span class="d-n">' + d + "</span>" +
+              '<span class="d-t">' + item.title + "</span>";
+
+            a.addEventListener("mouseenter", function () { showPreview(item, a); });
+            a.addEventListener("focus", function () { showPreview(item, a); });
+
+            if (!firstDayEl) { firstDayEl = a; firstItem = item; }
+            dIn.appendChild(a);
+          });
+
+          dWrap.appendChild(dIn);
+          mEl.appendChild(dWrap);
+          mIn.appendChild(mEl);
+        });
+
+        mWrap.appendChild(mIn);
+        yEl.appendChild(mWrap);
+      }
+
+      toc.appendChild(yEl);
+    }
+
+    // 默认展开最早有记录的年份，并预览第一条
+    var firstYearEl = toc.querySelector(".y:not(.blank)");
+    if (firstYearEl) {
+      firstYearEl.classList.add("open");
+      var fm = firstYearEl.querySelector(".m");
+      if (fm) fm.classList.add("open");
+    }
+    if (firstItem) showPreview(firstItem, firstDayEl);
+  }
+
+  // ===== 读取数据 =====
+  fetch("../timeline.json")
+    .then(function (r) { return r.json(); })
+    .then(build)
+    .catch(function () {
+      stage.innerHTML = '<p class="empty">读取 timeline.json 失败。请先执行 hexo generate。</p>';
+    });
+
+})();
+</script>
+</body>
+</html>
