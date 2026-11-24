@@ -42,7 +42,7 @@ $items = @(
     "source", "themes", "scripts", "scaffolds", ".git",
     "_config.yml", "_config.landscape.yml",
     "package.json", "package-lock.json", ".gitignore",
-    "写作指南.md", "write.ps1", "backup.ps1"
+    "写作指南.md", "write.ps1", "backup.ps1", "insert-image.ps1"
 )
 
 $stage = Join-Path $env:TEMP ("boke-stage-" + $stamp)
