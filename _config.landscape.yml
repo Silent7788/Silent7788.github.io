@@ -1,0 +1,12 @@
+# ===== 评论（giscus）=====
+# 读者用 GitHub 账号留言，评论存在仓库的 Discussions 里，零后端。
+# category_id 需要从 giscus.app 获取后填入，留空则文章底部不显示评论区。
+giscus:
+  enable: true
+  repo: Silent7788/Silent7788.github.io
+  repo_id: R_kgDOV6KiSQ
+  category: 评论
+  category_id: "DIC_kwDOV6KiSc4DL31j"
+  mapping: pathname
+  theme: preferred_color_scheme
+  lang: zh-CN
