@@ -308,3 +308,41 @@ $article-share-link
     display: block
     max-width: 100%
     margin: 0 auto
+
+// ===== 正文图片尺寸 =====
+// 觉得图片还是太大，就调小下面这个 max-height
+.article-entry
+  img
+    max-height: 520px
+    width: auto
+    border-radius: 4px
+    margin: 1.6em auto
+
+  figure.fig
+    margin: 1.8em 0
+    text-align: center
+
+    img
+      margin: 0 auto
+      max-height: 520px
+      border-radius: 4px
+
+    .caption
+      display: none
+
+    figcaption
+      margin-top: .7em
+      padding: 0 10px
+      font-size: 13px
+      line-height: 1.75
+      color: #8a8078
+      letter-spacing: .3px
+
+@media mq-mobile
+  .article-entry
+    img
+      max-height: 380px
+
+    figure.fig
+      img
+        max-height: 380px

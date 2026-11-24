@@ -133,7 +133,7 @@ foreach ($f in $list) {
         $eps.Dispose()
 
         $name = [System.IO.Path]::GetFileName($target)
-        $snippets += "![](/images/$Year/$name)"
+        $snippets += "{% figure /images/$Year/$name 说明文字 %}"
         $ok++
 
         $kbBefore = [math]::Round($f.Length / 1KB, 0)
@@ -174,5 +174,6 @@ if ($copied) {
 Write-Host ""
 foreach ($s in $snippets) { Write-Host "    $s" -ForegroundColor Yellow }
 Write-Host ""
+Write-Host "  粘贴后把「说明文字」改成你的描述；不需要图注就把它删掉。" -ForegroundColor DarkGray
 Write-Host "  图片保存在：$outDir" -ForegroundColor DarkGray
 Write-Host ""
